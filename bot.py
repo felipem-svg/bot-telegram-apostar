@@ -10,92 +10,58 @@ from telegram.ext import (
     ContextTypes,
 )
 
-# ================== LOG ==================
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     level=logging.INFO,
 )
-log = logging.getLogger("video-fileid-bot")
+log = logging.getLogger("fileid-bot")
 
-# ================== ENV ==================
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
+
 CACHE_PATH = "file_ids.json"
 
-if not TOKEN:
-    log.error("TELEGRAM_TOKEN não encontrada!")
-
-# ================== CACHE ==================
-
-def load_cache() -> dict:
-    try:
-        if os.path.exists(CACHE_PATH):
-            with open(CACHE_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception as e:
-        log.warning(f"Erro ao carregar cache: {e}")
+def load_cache():
+    if os.path.exists(CACHE_PATH):
+        with open(CACHE_PATH, "r") as f:
+            return json.load(f)
     return {"videos": []}
 
-
-def save_cache(data: dict):
-    try:
-        with open(CACHE_PATH, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-    except Exception as e:
-        log.warning(f"Erro ao salvar cache: {e}")
-
+def save_cache(data):
+    with open(CACHE_PATH, "w") as f:
+        json.dump(data, f, indent=2)
 
 FILE_IDS = load_cache()
 
-# ================== HANDLER ==================
-
-async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.message
-    if not message:
+async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+    if not msg:
         return
 
-    video_file_id = None
+    file_id = None
 
-    if message.video:
-        video_file_id = message.video.file_id
-    elif message.video_note:
-        video_file_id = message.video_note.file_id
-
-    if not video_file_id:
+    if msg.video:
+        file_id = msg.video.file_id
+        tipo = "VIDEO"
+    elif msg.video_note:
+        file_id = msg.video_note.file_id
+        tipo = "VIDEO_NOTE"
+    else:
         return
 
-    log.info(f"FILE_ID capturado: {video_file_id}")
+    log.info(f"{tipo} capturado: {file_id}")
 
-    # Salvar no cache
-    if video_file_id not in FILE_IDS["videos"]:
-        FILE_IDS["videos"].append(video_file_id)
+    if file_id not in FILE_IDS["videos"]:
+        FILE_IDS["videos"].append(file_id)
         save_cache(FILE_IDS)
 
-    # Responder SOMENTE com FILE_ID (sem Markdown → sem erro)
-    try:
-        await message.reply_text(
-            f"🆔 FILE_ID do vídeo:\n{video_file_id}"
-        )
-    except Exception as e:
-        log.error(f"Erro ao responder: {e}")
-
-
-# ================== MAIN ==================
+    await msg.reply_text(f"{tipo} FILE_ID:\n{file_id}")
 
 def main():
-    if not TOKEN:
-        log.error("Bot não iniciado: TELEGRAM_TOKEN ausente.")
-        return
-
     app = ApplicationBuilder().token(TOKEN).build()
-
-    app.add_handler(
-        MessageHandler(filters.VIDEO | filters.VIDEO_NOTE, handle_video)
-    )
-
-    log.info("🤖 Bot capturador de FILE_ID em execução...")
-    app.run_polling(drop_pending_updates=True)
-
+    app.add_handler(MessageHandler(filters.VIDEO | filters.VIDEO_NOTE, handle))
+    log.info("Bot rodando...")
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
