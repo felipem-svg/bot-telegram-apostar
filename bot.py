@@ -1,75 +1,46 @@
-import os
-import json
 import logging
-from dotenv import load_dotenv
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# ===== LOG =====
+TOKEN = "SEU_TOKEN_AQUI"
+
+# Seu FILE_ID do vídeo circular
+VIDEO_FILE_ID = "BAACAgEAAxkBAAIBeWmXXriakXooBPdl0AbvdJ2hq7cFAAKjBwACmMXBRJG4SSjXj3FQOgQ"
+
+LINK_COMUNIDADE = "https://t.me/+byKlrMy8nys1ZmFh"
+
 logging.basicConfig(
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
 )
-log = logging.getLogger("fileid-bot")
 
-# ===== ENV =====
-load_dotenv()
-TOKEN = os.getenv("TELEGRAM_TOKEN")
+# /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
 
-CACHE_PATH = "file_ids.json"
+    # Envia o vídeo circular
+    await context.bot.send_video_note(
+        chat_id=chat_id,
+        video_note=VIDEO_FILE_ID
+    )
 
-# ===== CACHE =====
-def load_cache():
-    if os.path.exists(CACHE_PATH):
-        with open(CACHE_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {"videos": []}
+    # Envia a mensagem com link
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"🎁 **Entre na nossa comunidade com vários prêmios e promoções exclusivas!**\n\n👉 {LINK_COMUNIDADE}",
+        parse_mode="Markdown",
+        disable_web_page_preview=True
+    )
 
-def save_cache(data):
-    with open(CACHE_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
 
-FILE_IDS = load_cache()
-
-# ===== HANDLER =====
-async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = update.message
-    if not msg:
-        return
-
-    file_id = None
-    tipo = None
-
-    if msg.video:
-        file_id = msg.video.file_id
-        tipo = "VIDEO"
-    elif msg.video_note:
-        file_id = msg.video_note.file_id
-        tipo = "VIDEO_NOTE"
-    else:
-        return
-
-    log.info(f"{tipo} capturado: {file_id}")
-
-    if file_id not in FILE_IDS["videos"]:
-        FILE_IDS["videos"].append(file_id)
-        save_cache(FILE_IDS)
-
-    # SEM Markdown, SEM parse_mode → impossível dar erro
-    texto = tipo + " FILE_ID:\n" + file_id
-    await msg.reply_text(texto)
-
-# ===== MAIN =====
 def main():
-    if not TOKEN:
-        log.error("TELEGRAM_TOKEN não encontrada!")
-        return
-
     app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(MessageHandler(filters.VIDEO | filters.VIDEO_NOTE, handle_video))
 
-    log.info("🤖 Bot rodando...")
-    app.run_polling(drop_pending_updates=True)
+    app.add_handler(CommandHandler("start", start))
+
+    print("Bot rodando...")
+    app.run_polling()
+
 
 if __name__ == "__main__":
     main()
