@@ -10,35 +10,40 @@ from telegram.ext import (
     ContextTypes,
 )
 
+# ========= LOG =========
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     level=logging.INFO,
 )
 log = logging.getLogger("fileid-bot")
 
+# ========= ENV =========
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 CACHE_PATH = "file_ids.json"
 
+# ========= CACHE =========
 def load_cache():
     if os.path.exists(CACHE_PATH):
-        with open(CACHE_PATH, "r") as f:
+        with open(CACHE_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     return {"videos": []}
 
 def save_cache(data):
-    with open(CACHE_PATH, "w") as f:
+    with open(CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
 FILE_IDS = load_cache()
 
-async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ========= HANDLER =========
+async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     if not msg:
         return
 
     file_id = None
+    tipo = None
 
     if msg.video:
         file_id = msg.video.file_id
@@ -55,13 +60,22 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
         FILE_IDS["videos"].append(file_id)
         save_cache(FILE_IDS)
 
-    await msg.reply_text(f"{tipo} FILE_ID:\n{file_id}")
+    # ❌ SEM Markdown → impossível quebrar
+    await msg.reply_text(
+        f"{tipo} FILE_ID:\n{file_id}"
+    )
 
+# ========= MAIN =========
 def main():
+    if not TOKEN:
+        log.error("TELEGRAM_TOKEN não encontrada!")
+        return
+
     app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(MessageHandler(filters.VIDEO | filters.VIDEO_NOTE, handle))
-    log.info("Bot rodando...")
-    app.run_polling()
+    app.add_handler(MessageHandler(filters.VIDEO | filters.VIDEO_NOTE, handle_video))
+
+    log.info("🤖 Bot rodando...")
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
