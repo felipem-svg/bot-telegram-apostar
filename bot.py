@@ -14,7 +14,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     level=logging.INFO,
 )
-log = logging.getLogger("video-welcome-bot")
+log = logging.getLogger("video-fileid-bot")
 
 load_dotenv()
 
@@ -23,6 +23,8 @@ CACHE_PATH = "file_ids.json"
 
 if not TOKEN:
     log.error("TELEGRAM_TOKEN não encontrada!")
+
+# ========= CACHE =========
 
 def load_cache() -> dict:
     try:
@@ -42,39 +44,34 @@ def save_cache(data: dict):
 
 FILE_IDS = load_cache()
 
+# =========================
+
 async def handle_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
     message = update.message
 
     video_file_id = None
-    is_note = False
 
     if message.video:
         video_file_id = message.video.file_id
     elif message.video_note:
         video_file_id = message.video_note.file_id
-        is_note = True
 
-    if video_file_id:
-        log.info(f"Vídeo absorvido do utilizador {chat_id}")
+    if not video_file_id:
+        return
 
-        if video_file_id not in FILE_IDS["videos"]:
-            FILE_IDS["videos"].append(video_file_id)
-            save_cache(FILE_IDS)
+    log.info(f"FILE_ID capturado: {video_file_id}")
 
-        if not is_note:
-            await message.reply_video(video=video_file_id)
-        else:
-            await message.reply_video_note(video_note=video_file_id)
+    # Salvar no cache
+    if video_file_id not in FILE_IDS["videos"]:
+        FILE_IDS["videos"].append(video_file_id)
+        save_cache(FILE_IDS)
 
-        id_msg = f"🆔 FILE_ID:\n`{video_file_id}`"
-        await message.reply_text(id_msg, parse_mode="Markdown")
+    # Apenas mostrar FILE_ID (SEM reenviar vídeo)
+    await message.reply_text(
+        f"🆔 FILE_ID do vídeo:\n`{video_file_id}`",
+        parse_mode="Markdown"
+    )
 
-        welcome_text = "Seja bem-vindo à nossa comunidade! 🌟"
-        await message.reply_text(welcome_text)
-
-    else:
-        log.warning("Recebido algo que não é um vídeo.")
 
 def main():
     if not TOKEN:
@@ -83,8 +80,9 @@ def main():
     app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(MessageHandler(filters.VIDEO | filters.VIDEO_NOTE, handle_video))
 
-    log.info("🤖 Bot em execução...")
+    log.info("🤖 Bot capturador de FILE_ID em execução...")
     app.run_polling(drop_pending_updates=True)
+
 
 if __name__ == "__main__":
     main()
