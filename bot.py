@@ -2,7 +2,7 @@ import logging
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-TOKEN = "SEU_TOKEN_AQUI"
+TOKEN = "8542251478:AAEzP4IiTjKlB6jsCsPfdjVzGtjL_T0dm7E"
 
 # Seu FILE_ID do vídeo circular
 VIDEO_FILE_ID = "BAACAgEAAxkBAAIBeWmXXriakXooBPdl0AbvdJ2hq7cFAAKjBwACmMXBRJG4SSjXj3FQOgQ"
